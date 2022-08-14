@@ -57,7 +57,8 @@
 
   <readouts>
     <readout name="EcalBarrelHits">
-      <id>system:8</id>
+      <segmentation type="NoSegmentation"/>
+      <id>system:8,sector:8,row:8,tower:-8</id>
     </readout>
   </readouts>
 </lccdd>

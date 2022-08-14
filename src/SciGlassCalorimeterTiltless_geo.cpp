@@ -58,6 +58,9 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
          row++, row_phi += rows_handle.deltaphi()) {
 
       const double tower_gap_longitudinal = dim_handle.gap();
+
+      // negative rapidity towers will be counted backwards from -1
+      std::array<int, 2> tower_ids = {-1, 0};
       std::array<double, 2> betas = {0., 0.};
       std::array<double, 2> dzs = {0., 0.};
       std::array<double, 2> flare_angle_polar_prevs = {0., 0.};
@@ -65,6 +68,7 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
       for (xml_coll_t family_handle{rows_handle, _Unicode(family)};
            family_handle; ++family_handle) {
         const int dir_sign = family_handle.attr<double>(_Unicode(dir_sign));
+        int &tower_id = tower_ids[(dir_sign > 0) ? 1 : 0];
         double &beta = betas[(dir_sign > 0) ? 1 : 0];
         double &dz = dzs[(dir_sign > 0) ? 1 : 0];
         double &flare_angle_polar_prev =
@@ -94,13 +98,13 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
         const double alpha1 = 0.;
         const double alpha2 = 0.;
 
-        for (unsigned int tower = 0; tower < number; tower++) {
+        for (unsigned int tower = 0; tower < number; tower++, tower_id += dir_sign) {
           // calculated before updating beta
           const double gamma = M_PI_2 - flare_angle_polar_prev - beta;
           beta += flare_angle_polar;
           dz += (tower_gap_longitudinal / cos(flare_angle_polar) + 2 * y1) *
                 sin(M_PI - gamma - beta) / sin(gamma);
-          const string t_name = "tower" + _toString(row, "_row%d");
+          const string t_name = _toString(sector, "sector%d") + _toString(row, "_row%d") + _toString(tower_id, "_tower%d");
           envelope_v
               .placeVolume(
                   Volume{t_name,
@@ -111,6 +115,9 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
                       Transform3D{Position{0. * cm, rmin, dir_sign * dz}} *
                       Transform3D{RotationX{-M_PI / 2 + dir_sign * beta}} *
                       Transform3D{Position{0, dir_sign * y1, z}})
+              .addPhysVolID("sector", sector)
+              .addPhysVolID("row", row)
+              .addPhysVolID("tower", tower_id)
               .volume()
               .setSensitiveDetector(sens)
               .setVisAttributes(lcdd.visAttributes(family_dim_handle.visStr()));
