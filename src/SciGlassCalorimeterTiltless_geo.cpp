@@ -35,7 +35,6 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
   xml_dim_t rows_handle = sectors_handle.child(_Unicode(rows));
   xml_dim_t dim_handle = rows_handle.dimensions();
   double row_rmin = dim_handle.inner_r();
-  Material air_material = lcdd.vacuum();
   DetElement det_element{det_handle.nameStr(), det_handle.id()};
 
   // envelope
@@ -99,7 +98,7 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
 
   // create polycone
   Polycone envelope_shape(0.0, 2 * M_PI, v_rmin, v_rmax, v_z);
-  Volume envelope_v{det_handle.nameStr(), envelope_shape, air_material};
+  Volume envelope_v{det_handle.nameStr(), envelope_shape, lcdd.material("Air")};
 
   PlacedVolume envelope_pv =
       lcdd.pickMotherVolume(det_element).placeVolume(envelope_v);
@@ -170,7 +169,7 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
                   Volume{t_name,
                          Trap{z, theta, phi, y1, x1, x2, alpha1, y2, x3, x4,
                               alpha2},
-                         air_material},
+                         lcdd.material("SciGlass")},
                   Transform3D{RotationZ{sector_phi + row_phi}} *
                       Transform3D{Position{0. * cm, row_rmin, dir_sign * dz}} *
                       Transform3D{RotationX{-M_PI / 2 + dir_sign * beta}} *
