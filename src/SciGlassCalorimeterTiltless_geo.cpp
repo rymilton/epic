@@ -34,15 +34,17 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
   xml_dim_t dim_handle = rows_handle.dimensions();
   double rmin = dim_handle.inner_r();
   double rmax = dim_handle.outer_r();
-  double zmin = dim_handle.inner_z();
+  double zmax = dim_handle.zmax();
+  double zmin = dim_handle.zmin();
+  const double zoffset = (zmax + zmin) / 2;
   Material air_material = lcdd.vacuum();
   DetElement det_element{det_handle.nameStr(), det_handle.id()};
 
-  Tube envelope_shape{rmin, rmax, zmin};
+  Tube envelope_shape{rmin, rmax, (zmax - zmin) / 2};
   Volume envelope_v{det_handle.nameStr(), envelope_shape, air_material};
 
   PlacedVolume envelope_pv =
-      lcdd.pickMotherVolume(det_element).placeVolume(envelope_v);
+      lcdd.pickMotherVolume(det_element).placeVolume(envelope_v, Position{0., 0., zoffset});
   envelope_pv.addPhysVolID("system", det_handle.id());
   det_element.setPlacement(envelope_pv);
 
@@ -112,7 +114,7 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
                               alpha2},
                          air_material},
                   Transform3D{RotationZ{sector_phi + row_phi}} *
-                      Transform3D{Position{0. * cm, rmin, dir_sign * dz}} *
+                      Transform3D{Position{0. * cm, rmin, dir_sign * dz - zoffset}} *
                       Transform3D{RotationX{-M_PI / 2 + dir_sign * beta}} *
                       Transform3D{Position{0, dir_sign * y1, z}})
               .addPhysVolID("sector", sector)

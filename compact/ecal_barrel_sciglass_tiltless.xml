@@ -26,10 +26,10 @@
 
         <rows number="5" deltaphi="2.92 * degree">
           <comment>
-            Global detector dimensions
+            Global detector dimensions from https://eic.jlab.org/Geometry/Detector/Detector-20220624102507.html
           </comment>
 
-          <dimensions inner_r="80 * cm" outer_r="130 * cm" inner_z="300 * cm" gap="1*mm" />
+          <dimensions inner_r="79.5 * cm" outer_r="125.5 * cm" zmax="195 * cm" zmin="-285 * cm" gap="1*mm" />
 
           <comment>
             Families in each row are constructed in two directions `dir_sign` - negative and positive rapidity - starting from the center.
