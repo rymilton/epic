@@ -3,6 +3,14 @@
     Implementation of the barrel SciGlass calorimeter
   </comment>
 
+  <define>
+    <documentation>
+      The EcalBarrel eta limits cut into the barrel shape.
+    </documentation>
+    <constant name="EcalBarrel_etamin" value="-3.5"/>
+    <constant name="EcalBarrel_etamax" value="+1.4"/>
+  </define>
+
   <display>
     <vis name="det_vis" alpha="1.0" r="1.0" g="0.0" b="0.0" showDaughters="true" visible="false" />
     <vis name="family1" alpha="1.0" r="0.22" g="0.54" b="0.71" showDaughters="true" visible="true" />
@@ -19,17 +27,21 @@
     </comment>
 
     <detector id="4" name="EcalBarrel" type="epic_SciGlassCalorimeterTiltless" readout="EcalBarrelHits" vis="det_vis" calorimeterType="EM_BARREL">
+      <comment>
+        Global detector dimensions from https://eic.jlab.org/Geometry/Detector/Detector-20220624102507.html
+      </comment>
+
+      <dimensions rmin="79.5 * cm" rmax="125.5 * cm"
+                  zmax="195 * cm" zmin="-285 * cm"
+                  etamin="EcalBarrel_etamin" etamax="EcalBarrel_etamax"/>
+
       <sectors number="24" phi0="0." deltaphi="pi / 12">
         <comment>
           Rows within a sector are supposed to have smaller gaps than edge rows of two adjacent sectors
         </comment>
 
         <rows number="5" deltaphi="2.92 * degree">
-          <comment>
-            Global detector dimensions from https://eic.jlab.org/Geometry/Detector/Detector-20220624102507.html
-          </comment>
-
-          <dimensions inner_r="79.5 * cm" outer_r="125.5 * cm" zmax="195 * cm" zmin="-285 * cm" gap="1*mm" />
+          <dimensions inner_r="79.5 * cm"  gap="1 * mm" />
 
           <comment>
             Families in each row are constructed in two directions `dir_sign` - negative and positive rapidity - starting from the center.

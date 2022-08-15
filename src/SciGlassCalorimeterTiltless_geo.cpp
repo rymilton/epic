@@ -19,9 +19,11 @@
  */
 
 #include <array>
+#include <limits>
 #include <string>
 
 #include <DD4hep/DetFactoryHelper.h>
+#include <DD4hep/Printout.h>
 
 using std::string;
 using namespace dd4hep;
@@ -32,19 +34,75 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
   xml_dim_t sectors_handle = det_handle.child(_Unicode(sectors));
   xml_dim_t rows_handle = sectors_handle.child(_Unicode(rows));
   xml_dim_t dim_handle = rows_handle.dimensions();
-  double rmin = dim_handle.inner_r();
-  double rmax = dim_handle.outer_r();
-  double zmax = dim_handle.zmax();
-  double zmin = dim_handle.zmin();
-  const double zoffset = (zmax + zmin) / 2;
+  double row_rmin = dim_handle.inner_r();
   Material air_material = lcdd.vacuum();
   DetElement det_element{det_handle.nameStr(), det_handle.id()};
 
-  Tube envelope_shape{rmin, rmax, (zmax - zmin) / 2};
+  // envelope
+  auto                dim    = det_handle.dimensions();
+  auto                rmin   = dim.rmin();
+  auto                rmax   = dim.rmax();
+  auto                zmin   = dim.zmin();
+  auto                zmax   = dim.zmax();
+  auto                etamin = dd4hep::getAttrOrDefault<double>(det_handle.child(_U(dimensions)), _Unicode(etamin),
+                                                 -std::numeric_limits<double>::max());
+  auto                etamax = dd4hep::getAttrOrDefault<double>(det_handle.child(_U(dimensions)), _Unicode(etamax),
+                                                 +std::numeric_limits<double>::max());
+  std::vector<double> v_rmin, v_rmax, v_z;
+  auto                theta = [](const auto eta) { return 2.0 * atan(exp(-eta)); };
+
+  // backward nose cone
+  printout(DEBUG, "SciGlassCalorimeterTiltless", "etamin cutout: etamin = %f, thetamin = %f", etamin, theta(etamin));
+  if (-zmin * sin(theta(etamin)) < rmin) {
+    // no cutout: regular end face
+    printout(DEBUG, "SciGlassCalorimeterTiltless", "no etamin cutout: zmin * sin(theta(etamin)) = %f < rmin = %f",
+             -zmin * sin(theta(etamin)), rmin);
+    v_z.emplace_back(zmin);
+    v_rmin.emplace_back(rmin);
+    v_rmax.emplace_back(rmax);
+  } else {
+    // with cutout: first add zmin side
+    printout(DEBUG, "SciGlassCalorimeterTiltless", "etamin cutout: zmin * sin(theta(etamin)) = %f > rmin = %f",
+             zmin * sin(theta(etamin)), rmin);
+    auto z = std::max(zmin, rmax / tan(theta(etamin))); // zmin or furthest backwards
+    v_z.emplace_back(z);
+    v_rmin.emplace_back(std::max(rmin, z * tan(theta(etamin))));
+    v_rmax.emplace_back(rmax);
+    // then where cutout starts
+    v_z.emplace_back(rmin / tan(theta(etamin)));
+    v_rmin.emplace_back(rmin);
+    v_rmax.emplace_back(rmax);
+  }
+
+  // forward nose cone
+  printout(DEBUG, "SciGlassCalorimeterTiltless", "etamax cutout: etamax = %f, thetamax = %f", etamax, theta(etamax));
+  if (zmax * sin(theta(etamax)) < rmin) {
+    // no cutout: regular end face
+    printout(DEBUG, "SciGlassCalorimeterTiltless", "no etamax cutout: zmax * sin(theta(etamin)) = %f < rmin = %f",
+             zmax * sin(theta(etamax)), rmin);
+    v_z.emplace_back(zmax);
+    v_rmin.emplace_back(rmin);
+    v_rmax.emplace_back(rmax);
+  } else {
+    // with cutout: first add where cutout starts
+    printout(DEBUG, "SciGlassCalorimeterTiltless", "etamax cutout: zmax * sin(theta(etamax)) = %f > rmin = %f",
+             zmax * sin(theta(etamax)), rmin);
+    v_z.emplace_back(rmin / tan(theta(etamax)));
+    v_rmin.emplace_back(rmin);
+    v_rmax.emplace_back(rmax);
+    // then add zmax side
+    auto z = std::min(zmax, rmax / tan(theta(etamax))); // zmax or furthest forward
+    v_z.emplace_back(z);
+    v_rmin.emplace_back(std::max(rmin, z * tan(theta(etamax))));
+    v_rmax.emplace_back(rmax);
+  }
+
+  // create polycone
+  Polycone envelope_shape(0.0, 2 * M_PI, v_rmin, v_rmax, v_z);
   Volume envelope_v{det_handle.nameStr(), envelope_shape, air_material};
 
   PlacedVolume envelope_pv =
-      lcdd.pickMotherVolume(det_element).placeVolume(envelope_v, Position{0., 0., zoffset});
+      lcdd.pickMotherVolume(det_element).placeVolume(envelope_v);
   envelope_pv.addPhysVolID("system", det_handle.id());
   det_element.setPlacement(envelope_pv);
 
@@ -114,7 +172,7 @@ static Ref_t create_detector(Detector &lcdd, xml_h handle,
                               alpha2},
                          air_material},
                   Transform3D{RotationZ{sector_phi + row_phi}} *
-                      Transform3D{Position{0. * cm, rmin, dir_sign * dz - zoffset}} *
+                      Transform3D{Position{0. * cm, row_rmin, dir_sign * dz}} *
                       Transform3D{RotationX{-M_PI / 2 + dir_sign * beta}} *
                       Transform3D{Position{0, dir_sign * y1, z}})
               .addPhysVolID("sector", sector)
